@@ -79,7 +79,7 @@ class PrimeSaver(multiprocessing.Process):
 
 
 if __name__ == "__main__":  
-    primes_database = database.PrimeDatabase(r"..\Data\Primes.sqlite")
+    primes_database = database.PrimeDatabase(r"Primes.sqlite")
     start_value = primes_database.get_max_prime() + 1
     
     worker_count = multiprocessing.cpu_count()
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     psutil.Process(pid=saver.pid).nice(psutil.HIGH_PRIORITY_CLASS)
     
     
-    for _ in range(1500):
+    for _ in range(6):
         time.sleep(10)
         print("")
         block_size = feeder.block_size.value

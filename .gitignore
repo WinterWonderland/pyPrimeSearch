@@ -1,4 +1,4 @@
 *__pycache__
-Data/*.sqlite
+*.sqlite
 .project
 .pydevproject
