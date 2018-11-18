@@ -28,8 +28,8 @@ class PrimeFeeder(multiprocessing.Process):
                 self.job_queue.put((self.start_value, self.start_value + self.block_size.value), block=True, timeout=1.0)
                 self.start_value += self.block_size.value
             except:
-                pass               
-
+                pass   
+            
                 
 class PrimeWorker(multiprocessing.Process):
     def __init__(self, stop_flag, job_queue, prime_queue):
@@ -143,7 +143,9 @@ class PrimeController(threading.Thread):
             start_time = time.perf_counter()
             print("")
             block_size = feeder.block_size.value
-            main_window.set_block_size(block_size)
+            block_size_lower_limit = 1  # because a block with 0 length will stuck up the program
+            block_size_upper_limit = 2**15-1  # because the blocksize is a ctypes 2 bytes signed int 
+            main_window.set_block_size(block_size, block_size_lower_limit)
              
             block_times = []
             for worker in workers:
@@ -155,7 +157,7 @@ class PrimeController(threading.Thread):
                 mean_time = sum(block_times) / len(block_times)
                 main_window.set_block_time(mean_time, prefered_block_time)
                 if mean_time > 0:
-                    feeder.block_size.value = max(1, int(block_size * (1 + ((prefered_block_time / mean_time - 1) * damping))))
+                    feeder.block_size.value = max(block_size_lower_limit, min(block_size_upper_limit, int(block_size * (1 + ((prefered_block_time / mean_time - 1) * damping))))) 
              
             main_window.set_prime_count(primes_database.get_prime_count())   
             main_window.set_max_prime(primes_database.get_max_prime())
@@ -166,8 +168,9 @@ class PrimeController(threading.Thread):
             # duration of sleep is only sleep_interval to stop faster
             sleep_interval = 0.1
             sleep_factor = 5
-            update_interval = (end_time - start_time) * sleep_factor
-            main_window.set_ui_update_interval(update_interval, sleep_factor)
+            update_interval_lower_limit = 10 # minimum 10s update interval
+            update_interval = max(update_interval_lower_limit, (end_time - start_time) * sleep_factor)
+            main_window.set_ui_update_interval(update_interval, sleep_factor, update_interval_lower_limit)
             for _ in range(int(update_interval / sleep_interval)):
                 if self.stop:
                     break
