@@ -38,14 +38,13 @@ class PrimeDatabase:
     def save_new_prime(self, value):
         with sqlite3.connect(self._path) as database_connection:
             cursor = database_connection.cursor()
-            cursor.execute("INSERT INTO AllPrimes VALUES(" + str(value) + ")")
+            cursor.execute("INSERT INTO AllPrimes VALUES (?)", (value,))
 
     @retry_on_database_locked
     def save_prime_list(self, prime_list):
         with sqlite3.connect(self._path) as database_connection:
             cursor = database_connection.cursor()
-            for prime in prime_list:
-                cursor.execute("INSERT INTO AllPrimes VALUES(" + str(prime) + ")")
+            cursor.executemany("INSERT INTO AllPrimes VALUES (?)", ((prime,) for prime in prime_list))
 
     @retry_on_database_locked
     def get_all_primes(self):
@@ -65,11 +64,10 @@ class PrimeDatabase:
     def check_prime(self, value):
         with sqlite3.connect(self._path) as database_connection:
             cursor = database_connection.cursor()
-            cursor.execute("SELECT 1 FROM AllPrimes WHERE Value=" + str(value))
-            try:
-                cursor.fetchone()[0]
+            cursor.execute("SELECT 1 FROM AllPrimes WHERE Value=?", (value,))
+            if cursor.fetchone():
                 is_prime = True
-            except:
+            else:
                 is_prime = False
             return is_prime
                 
