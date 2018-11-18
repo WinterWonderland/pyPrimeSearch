@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>588</width>
-    <height>141</height>
+    <width>433</width>
+    <height>160</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -54,6 +54,13 @@
        </layout>
       </item>
       <item>
+       <widget class="QLabel" name="label_uiupdateinterval">
+        <property name="text">
+         <string>ui update interval:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <spacer name="verticalSpacer">
         <property name="orientation">
          <enum>Qt::Vertical</enum>
@@ -75,7 +82,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>588</width>
+     <width>433</width>
      <height>21</height>
     </rect>
    </property>

@@ -28,13 +28,16 @@ class MainWindow(QMainWindow):
         UiLoader().loadUi(r"main_window.ui", self)
         
     def set_block_size(self, block_size):
-        self.label_blocksize.setText("block size: {0}".format(block_size))
+        self.label_blocksize.setText("block size: {0}  (will be regulated to get the prefered block time)".format(block_size))
         
-    def set_block_time(self, block_time):
-        self.label_blocktime.setText("block time: {0}".format(block_time))
+    def set_block_time(self, block_time, prefered_block_time):
+        self.label_blocktime.setText("block time: {0:.3f}s  (will be regulated to {1}s)".format(block_time, prefered_block_time))
         
     def set_prime_count(self, prime_count):
         self.label_primecount.setText("prime count: {0}".format(prime_count))
         
     def set_max_prime(self, max_prime):
         self.label_maxprime.setText("max prime: {0}".format(max_prime))
+        
+    def set_ui_update_interval(self, interval, sleep_factor):
+        self.label_uiupdateinterval.setText("ui update interval: {0:.1f}s  ({1}x time of the ui update)".format(interval, sleep_factor))
