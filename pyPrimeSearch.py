@@ -1,9 +1,15 @@
+import os
+import sys
 import math
 import time
 import multiprocessing
-import database
+import threading
 import psutil
-          
+from PySide2.QtWidgets import QApplication
+
+from database import PrimeDatabase
+from main_window import MainWindow
+
                 
 class PrimeFeeder(multiprocessing.Process):
     def __init__(self, stop_flag, job_queue, start_value, block_size):
@@ -14,6 +20,7 @@ class PrimeFeeder(multiprocessing.Process):
         super().__init__()
     
     def run(self):
+        threading.main_thread().name = "Feeder"
         while not self.stop_flag.value:
             try:
                 self.job_queue.put((self.start_value, self.start_value + self.block_size.value), block=True, timeout=1.0)
@@ -31,6 +38,7 @@ class PrimeWorker(multiprocessing.Process):
         super().__init__()
         
     def run(self):
+        threading.main_thread().name = "Worker"
         while not self.stop_flag.value:
             try:
                 start_time = time.perf_counter()
@@ -68,6 +76,7 @@ class PrimeSaver(multiprocessing.Process):
         super().__init__()
         
     def run(self):
+        threading.main_thread().name = "Saver"
         while not self.stop_flag.value:
             values = []
             while not self.prime_queue.empty():
@@ -76,79 +85,104 @@ class PrimeSaver(multiprocessing.Process):
             for value in values:
                 self.prime_queue.task_done()
             time.sleep(0.1)
+            
+            
+class PrimeController(threading.Thread):
+    def __init__(self, main_window):
+        self.stop = False
+        self.main_window = main_window
+        super().__init__(name="Controller")
+            
+    def run(self):
+        primes_database = PrimeDatabase(r"primes.sqlite")
+        start_value = primes_database.get_max_prime() + 1
+     
+        worker_count = multiprocessing.cpu_count()
+        job_queue = multiprocessing.JoinableQueue(maxsize=worker_count * 2)
+        prime_queue = multiprocessing.JoinableQueue()
+     
+     
+        stop_flag_feeder = multiprocessing.Value("b", False)
+        block_size_feeder = multiprocessing.Value("i", 1)
+        feeder = PrimeFeeder(stop_flag_feeder, 
+                             job_queue,
+                             start_value,
+                             block_size_feeder)
+        feeder.daemon = True
+        feeder.start()
+        psutil.Process(pid=feeder.pid).nice(psutil.HIGH_PRIORITY_CLASS)
+     
+     
+        stop_flag_worker = multiprocessing.Value("b", False)
+        workers = []
+        for _ in range(worker_count):
+            worker = PrimeWorker(stop_flag_worker, 
+                                 job_queue,
+                                 prime_queue)
+            worker.daemon = True
+            worker.start()
+            workers.append(worker)
+     
+     
+        stop_flag_saver = multiprocessing.Value("b", False)
+        saver = PrimeSaver(stop_flag_saver, 
+                           prime_queue,
+                           primes_database)
+        saver.daemon = True
+        saver.start()
+        psutil.Process(pid=saver.pid).nice(psutil.HIGH_PRIORITY_CLASS)
+     
+     
+        while not self.stop:
+            print("")
+            block_size = feeder.block_size.value
+            main_window.set_block_size(block_size)
+             
+            block_times = []
+            for worker in workers:
+                block_times.extend(worker.get_block_times())
+                 
+            if block_times:
+                mean_time = sum(block_times) / len(block_times)
+                main_window.set_block_time(mean_time)
+                if mean_time > 0:
+                    prefered_block_time = 1.0
+                    damping = 0.7
+                    feeder.block_size.value = max(1, int(block_size * (1 + ((prefered_block_time / mean_time - 1) * damping))))
+             
+            main_window.set_prime_count(primes_database.get_prime_count())        
+            main_window.set_max_prime(primes_database.get_max_prime())
+            
+            for _ in range(10):
+                if self.stop:
+                    break
+                time.sleep(0.1)
+                 
+        stop_flag_feeder.value = True
+        feeder.join()
+         
+        job_queue.join()
+        stop_flag_worker.value = True
+        for worker in workers:
+            worker.join()
+             
+        prime_queue.join()
+        stop_flag_saver.value = True
+        saver.join()
 
 
 if __name__ == "__main__":  
-    primes_database = database.PrimeDatabase(r"Primes.sqlite")
-    start_value = primes_database.get_max_prime() + 1
+    threading.main_thread().name = "UserInterface"
+    if (QApplication.instance() is None):
+            QApplication(sys.argv)
     
-    worker_count = multiprocessing.cpu_count()
-    job_queue = multiprocessing.JoinableQueue(maxsize=worker_count * 2)
-    prime_queue = multiprocessing.JoinableQueue()
+    main_window = MainWindow()
+    main_window.show()
     
+    controller = PrimeController(main_window)
+    controller.start()
     
-    stop_flag_feeder = multiprocessing.Value("b", False)
-    block_size_feeder = multiprocessing.Value("i", 1)
-    feeder = PrimeFeeder(stop_flag_feeder, 
-                         job_queue,
-                         start_value,
-                         block_size_feeder)
-    feeder.daemon = True
-    feeder.start()
-    psutil.Process(pid=feeder.pid).nice(psutil.HIGH_PRIORITY_CLASS)
-    
-    
-    stop_flag_worker = multiprocessing.Value("b", False)
-    workers = []
-    for _ in range(worker_count):
-        worker = PrimeWorker(stop_flag_worker, 
-                             job_queue,
-                             prime_queue)
-        worker.daemon = True
-        worker.start()
-        workers.append(worker)
-    
-    
-    stop_flag_saver = multiprocessing.Value("b", False)
-    saver = PrimeSaver(stop_flag_saver, 
-                       prime_queue,
-                       primes_database)
-    saver.daemon = True
-    saver.start()
-    psutil.Process(pid=saver.pid).nice(psutil.HIGH_PRIORITY_CLASS)
-    
-    
-    for _ in range(6):
-        time.sleep(10)
-        print("")
-        block_size = feeder.block_size.value
-        print("block size", block_size)
-        
-        block_times = []
-        for worker in workers:
-            block_times.extend(worker.get_block_times())
-            
-        if block_times:
-            mean_time = sum(block_times) / len(block_times)
-            print("mean block time", mean_time)
-            if mean_time > 0:
-                prefered_block_time = 1.0
-                damping = 0.7
-                feeder.block_size.value = max(1, int(block_size * (1 + ((prefered_block_time / mean_time - 1) * damping))))
-                
-        print("prime count", primes_database.get_prime_count())
-        print("max prime", primes_database.get_max_prime())
-
-        
-    stop_flag_feeder.value = True
-    feeder.join()
-    
-    job_queue.join()
-    stop_flag_worker.value = True
-    for worker in workers:
-        worker.join()
-        
-    prime_queue.join()
-    stop_flag_saver.value = True
-    saver.join()
+    QApplication.instance().exec_()
+    controller.stop = True
+    controller.join()
     
