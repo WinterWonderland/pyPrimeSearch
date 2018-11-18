@@ -62,5 +62,14 @@ class PrimeDatabase:
             return cursor.fetchone()[0]
         
     @retry_on_database_locked
-    def is_prime(self, value):
-        pass
+    def check_prime(self, value):
+        with sqlite3.connect(self._path) as database_connection:
+            cursor = database_connection.cursor()
+            cursor.execute("SELECT 1 FROM AllPrimes WHERE Value=" + str(value))
+            try:
+                cursor.fetchone()[0]
+                is_prime = True
+            except:
+                is_prime = False
+            return is_prime
+                

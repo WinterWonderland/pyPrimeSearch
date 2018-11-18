@@ -11,6 +11,8 @@ from database import PrimeDatabase
 from main_window import MainWindow
 
 
+database_path = os.path.dirname(os.path.abspath(__file__)) + "/primes.sqlite"
+
 class PrimeFeeder(multiprocessing.Process):
     def __init__(self, stop_flag, job_queue, start_value, block_size):
         self.stop_flag = stop_flag
@@ -56,6 +58,7 @@ class PrimeWorker(multiprocessing.Process):
             except:
                 pass
                 
+    @classmethod
     def check_prime(self, test_value):
         if test_value % 2 == 0 and test_value > 2:
             return False
@@ -94,7 +97,7 @@ class PrimeController(threading.Thread):
         super().__init__(name="Controller")
             
     def run(self):
-        primes_database = PrimeDatabase(r"primes.sqlite")
+        primes_database = PrimeDatabase(database_path)
         start_value = primes_database.get_max_prime() + 1
      
         worker_count = multiprocessing.cpu_count()
@@ -183,17 +186,26 @@ class PrimeController(threading.Thread):
         saver.join()
 
 
+def check_prime(value):
+    primes_database = PrimeDatabase(database_path)
+    if value > primes_database.get_max_prime():
+        is_prime = PrimeWorker.check_prime(value)
+    else:
+        is_prime = primes_database.check_prime(value)
+    return is_prime
+
+
 if __name__ == "__main__":  
     threading.main_thread().name = "UserInterface"
     if (QApplication.instance() is None):
             QApplication(sys.argv)
-    
+     
     main_window = MainWindow()
     main_window.show()
-    
+     
     controller = PrimeController(main_window)
     controller.start()
-    
+     
     QApplication.instance().exec_()
     controller.stop = True
     controller.join()
