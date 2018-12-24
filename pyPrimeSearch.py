@@ -85,7 +85,7 @@ class PrimeSaver(multiprocessing.Process):
             while not self.prime_queue.empty():
                 values.append(self.prime_queue.get())
             self.primes_database.save_prime_list(values)
-            for value in values:
+            for _ in values:
                 self.prime_queue.task_done()
             time.sleep(0.1)
             
