@@ -9,7 +9,7 @@ def retry_on_database_locked(func):
         while not success:
             try:
                 return_value = func(*args, **kwargs)
-            except sqlite3.Error as exception:
+            except sqlite3.Error:
                 success = False
             else:
                 success = True
