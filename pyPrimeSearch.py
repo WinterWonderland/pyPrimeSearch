@@ -13,6 +13,7 @@ from main_window import MainWindow
 
 database_path = os.path.dirname(os.path.abspath(__file__)) + "/primes.sqlite"
 
+
 class PrimeFeeder(multiprocessing.Process):
     def __init__(self, stop_flag, job_queue, start_value, block_size):
         self.stop_flag = stop_flag
@@ -27,7 +28,7 @@ class PrimeFeeder(multiprocessing.Process):
             try:
                 self.job_queue.put((self.start_value, self.start_value + self.block_size.value), block=True, timeout=1.0)
                 self.start_value += self.block_size.value
-            except:
+            except Exception:
                 pass   
             
                 
@@ -55,7 +56,7 @@ class PrimeWorker(multiprocessing.Process):
                 if self.block_times.full():
                     self.block_times.get()
                 self.block_times.put(end_time - start_time)
-            except:
+            except Exception:
                 pass
                 
     @classmethod
@@ -104,7 +105,6 @@ class PrimeController(threading.Thread):
         job_queue = multiprocessing.JoinableQueue(maxsize=worker_count * 2)
         prime_queue = multiprocessing.JoinableQueue()
      
-     
         # start feeder process
         stop_flag_feeder = multiprocessing.Value("b", False)
         block_size_feeder = multiprocessing.Value("i", 1)
@@ -116,7 +116,6 @@ class PrimeController(threading.Thread):
         feeder.start()
         psutil.Process(pid=feeder.pid).nice(psutil.HIGH_PRIORITY_CLASS)
      
-     
         # start worker process
         stop_flag_worker = multiprocessing.Value("b", False)
         workers = []
@@ -127,7 +126,6 @@ class PrimeController(threading.Thread):
             worker.daemon = True
             worker.start()
             workers.append(worker)
-     
      
         # start saver process
         stop_flag_saver = multiprocessing.Value("b", False)
@@ -144,7 +142,7 @@ class PrimeController(threading.Thread):
             print("")
             block_size = feeder.block_size.value
             block_size_lower_limit = 1  # because a block with 0 length will stuck up the program
-            block_size_upper_limit = 2**15-1  # because the blocksize is a ctypes 2 bytes signed int 
+            block_size_upper_limit = 2**15 - 1  # because the blocksize is a ctypes 2 bytes signed int 
             main_window.set_block_size(block_size, block_size_lower_limit)
              
             block_times = []
@@ -168,7 +166,7 @@ class PrimeController(threading.Thread):
             # duration of sleep is only sleep_interval to stop faster
             sleep_interval = 0.1
             sleep_factor = 5
-            update_interval_lower_limit = 10 # minimum 10s update interval
+            update_interval_lower_limit = 10  # minimum 10s update interval
             update_interval = max(update_interval_lower_limit, (end_time - start_time) * sleep_factor)
             main_window.set_ui_update_interval(update_interval, sleep_factor, update_interval_lower_limit)
             for _ in range(int(update_interval / sleep_interval)):
